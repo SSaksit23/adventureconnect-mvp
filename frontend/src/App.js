@@ -4,14 +4,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-ro
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Pages
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ProviderDashboard from './pages/ProviderDashboard';
-import CreateTrip from './pages/CreateTrip';
-import TripList from './pages/TripList';
-import TripDetail from './pages/TripDetail';
-import BookingRequest from './pages/BookingRequest';
+import Home from './pages/Home.js';
+import Login from './pages/Login.js';
+import Register from './pages/Register.js';
+import ProviderDashboard from './pages/ProviderDashboard.js';
+import CreateTrip from './pages/CreateTrip.js';
+import TripList from './pages/TripList.js';
+import TripDetail from './pages/TripDetail.js';
+import BookingRequest from './pages/BookingRequest.js';
 
 // Components
 const PrivateRoute = ({ children, providerOnly = false }) => {
