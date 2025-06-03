@@ -1,0 +1,170 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: adventureconnect_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-adventureconnect}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-adventureconnect}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - adventureconnect_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: adventureconnect_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - adventureconnect_network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: adventureconnect_backend
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DATABASE_URL: postgresql://${DB_USER:-adventureconnect}:${DB_PASSWORD:-password}@postgres:5432/${DB_NAME:-adventureconnect}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@adventureconnect.com}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - adventureconnect_network
+    command: npm run dev
+
+  # Frontend App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: adventureconnect_frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:5000/api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - adventureconnect_network
+    command: npm start
+
+  # pgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: adventureconnect_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@adventureconnect.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - adventureconnect_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  adventureconnect_network:
+    driver: bridge
+
+# backend/Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy application files
+COPY . .
+
+# Create uploads directory
+RUN mkdir -p uploads
+
+# Expose port
+EXPOSE 5000
+
+# Start the application
+CMD ["npm", "run", "dev"]
+
+# frontend/Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start the application
+CMD ["npm", "start"]
+
+# .env.example
+# Database
+DB_USER=adventureconnect
+DB_PASSWORD=your-secure-password
+DB_NAME=adventureconnect
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key-change-this
+
+# Email (optional for Phase 1)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+EMAIL_FROM=noreply@adventureconnect.com
+
+# pgAdmin (optional)
+PGADMIN_EMAIL=admin@adventureconnect.com
+PGADMIN_PASSWORD=admin
+
+# Stripe (Phase 2)
+STRIPE_SECRET_KEY=sk_test_your_stripe_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+
+# Amadeus API (Phase 2)
+AMADEUS_CLIENT_ID=your_amadeus_client_id
+AMADEUS_CLIENT_SECRET=your_amadeus_client_secret
